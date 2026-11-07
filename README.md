@@ -80,3 +80,9 @@ Electron, uiohook-napi, AppleScript
 - Dönüştürme araçları sistemde kurulu olmalı, uygulamanın içinde gömülü değil
 - PDF → DOCX düzeni bozabilir
 - Uygulama imzasız (ad-hoc), her derlemede izinleri yeniden vermek gerekebilir
+
+## İndir
+
+[**Converter'ı indir (macOS, Apple Silicon)**](https://github.com/emreedemirkaya/Converter)
+
+İndirdikten sonra `Converter.app` dosyasını Uygulamalar klasörüne taşı. İlk açılışta uyarı çıkarsa sağ tık → Aç de.
