@@ -1,0 +1,47 @@
+{
+  "name": "converter",
+  "productName": "Converter",
+  "version": "1.0.0",
+  "description": "Finder için hızlı dosya dönüştürücü",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac dir && npm run sign",
+    "sign": "codesign --force --deep --sign - dist/mac-arm64/Converter.app"
+  },
+  "keywords": [],
+  "author": "Emre",
+  "license": "ISC",
+  "type": "commonjs",
+  "build": {
+    "appId": "com.emre.converter",
+    "productName": "Converter",
+    "files": [
+      "main.js",
+      "finder.js",
+      "converters.js",
+      "convert.js",
+      "preload.js",
+      "index.html",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/uiohook-napi/**"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": "dir",
+      "extendInfo": {
+        "LSUIElement": true,
+        "NSAppleEventsUsageDescription": "Converter, Finder'da seçili dosyaları okumak için Finder'ı kontrol etmek istiyor."
+      }
+    }
+  },
+  "dependencies": {
+    "uiohook-napi": "^1.5.5"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  }
+}

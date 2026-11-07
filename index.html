@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  html, body {
+    width: 100%; height: 100%;
+    background: transparent;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    color: #fff;
+  }
+  .stage { position: relative; width: 600px; height: 600px; }
+  .stage.animate { animation: pop .16s ease-out; }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(.88); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  svg { display: block; }
+
+  .bg { fill: rgba(8, 8, 12, 0.55); }
+  .ring { fill: none; stroke: rgba(255,255,255,0.18); stroke-width: 1.5; pointer-events: none; }
+
+  .sector { cursor: pointer; }
+  .sector path {
+    fill: rgba(22, 22, 30, 0.82);
+    stroke: rgba(255,255,255,0.14);
+    stroke-width: 1.5;
+    transition: fill .1s, stroke .1s;
+  }
+  .sector .zoom { transform-origin: 300px 300px; transition: transform .1s; }
+  .sector:hover .zoom { transform: scale(1.045); }
+  .sector:hover path { fill: var(--c); stroke: #fff; stroke-width: 2.5; }
+  .sector text { pointer-events: none; text-anchor: middle; fill: #fff; }
+  .keynum { font-size: 13px; font-weight: 700; opacity: .75; }
+  .badge-text { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+  .lbl { font-size: 12.5px; font-weight: 500; }
+
+  .center {
+    position: absolute; left: 50%; top: 50%;
+    width: 190px; transform: translate(-50%, -50%);
+    text-align: center; pointer-events: none;
+  }
+  .center .small { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.5); }
+  .center .name {
+    font-size: 13px; font-weight: 600; margin: 6px 0;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; word-break: break-all;
+  }
+  .center .ext {
+    display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 8px;
+    border-radius: 6px; background: rgba(255,255,255,.16); text-transform: uppercase;
+  }
+  .center .target { margin-top: 10px; font-size: 15px; font-weight: 700; min-height: 20px; }
+  .center .more { margin-top: 4px; font-size: 10px; color: rgba(255,255,255,.5); }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <svg id="wheel" viewBox="0 0 600 600" width="600" height="600"></svg>
+    <div class="center">
+      <div class="small">Dönüştür</div>
+      <div class="name" id="name"></div>
+      <span class="ext" id="ext"></span>
+      <div class="target" id="target"></div>
+      <div class="more" id="more"></div>
+    </div>
+  </div>
+
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const CX = 300, CY = 300, R_OUT = 275, R_IN = 108, R_MID = 192;
+
+  const COLORS = {
+    pdf: '#e5484d', docx: '#2b6fe0', doc: '#2b6fe0', odt: '#3a86c8', rtf: '#5b7c99',
+    txt: '#6b7280', html: '#e8833a', md: '#7c5cff', xlsx: '#1f9d55', csv: '#2fa36b',
+    ods: '#2f9e8f', pptx: '#d9622b', odp: '#c9743a', jpg: '#d6a21e', png: '#8a5cf5',
+    heic: '#4f9ccf', tiff: '#7a8b99', gif: '#e0529c', bmp: '#6b8e9b',
+    mp3: '#e0529c', wav: '#a855f7', m4a: '#ec6a5e', flac: '#14a3b8', ogg: '#7c8a3a',
+    mp4: '#4f6bed', mov: '#4a5568', webm: '#2d9cdb',
+  };
+
+  const svg = document.getElementById('wheel');
+  const stage = document.getElementById('stage');
+  const targetEl = document.getElementById('target');
+  let currentOptions = [];
+
+  function el(tag, attrs = {}, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  // Açı (derece, 0 = sağ, saat yönünde artar) → koordinat
+  function pt(r, deg) {
+    const rad = (deg * Math.PI) / 180;
+    return `${(CX + r * Math.cos(rad)).toFixed(2)} ${(CY + r * Math.sin(rad)).toFixed(2)}`;
+  }
+
+  function sectorPath(a0, a1, n) {
+    if (n === 1) {
+      const ring = (r) =>
+        `M ${CX - r} ${CY} a ${r} ${r} 0 1 0 ${2 * r} 0 a ${r} ${r} 0 1 0 ${-2 * r} 0 Z`;
+      return ring(R_OUT) + ' ' + ring(R_IN);
+    }
+    const gap = 1.6;
+    const s = a0 + gap, e = a1 - gap;
+    const large = e - s > 180 ? 1 : 0;
+    return `M ${pt(R_OUT, s)} A ${R_OUT} ${R_OUT} 0 ${large} 1 ${pt(R_OUT, e)} ` +
+           `L ${pt(R_IN, e)} A ${R_IN} ${R_IN} 0 ${large} 0 ${pt(R_IN, s)} Z`;
+  }
+
+  function render(options) {
+    svg.innerHTML = '';
+    // Arka plan: boş alana tıklayınca kapanır
+    el('circle', { class: 'bg', cx: CX, cy: CY, r: R_OUT + 14 }, svg);
+
+    const n = options.length;
+    if (n === 0) {
+      el('circle', { class: 'ring', cx: CX, cy: CY, r: R_IN }, svg);
+      targetEl.textContent = 'Seçenek yok';
+      return;
+    }
+
+    const step = 360 / n;
+    options.forEach((o, i) => {
+      // 1. dilim tam tepede ortalanır, saat yönünde ilerler
+      const a0 = -90 - step / 2 + i * step;
+      const a1 = a0 + step;
+      const am = (a0 + a1) / 2;
+      const rad = (am * Math.PI) / 180;
+      const x = CX + R_MID * Math.cos(rad);
+      const y = CY + R_MID * Math.sin(rad);
+      const color = COLORS[o.to] || '#555';
+
+      const g = el('g', { class: 'sector', style: `--c:${color}` }, svg);
+      const zoom = el('g', { class: 'zoom' }, g);
+      const path = el('path', { d: sectorPath(a0, a1, n) }, zoom);
+      if (n === 1) path.setAttribute('fill-rule', 'evenodd');
+
+      // İçerik: numara, renkli rozet, etiket
+      el('text', { class: 'keynum', x, y: y - 26 }, g).textContent = i + 1;
+      el('rect', { x: x - 24, y: y - 16, width: 48, height: 26, rx: 8, fill: color, 'pointer-events': 'none' }, g);
+      el('text', { class: 'badge-text', x, y: y + 2 }, g).textContent = o.to;
+      el('text', { class: 'lbl', x, y: y + 30 }, g).textContent = o.label;
+
+      g.addEventListener('mouseenter', () => (targetEl.textContent = '→ ' + o.to.toUpperCase()));
+      g.addEventListener('mouseleave', () => (targetEl.textContent = ''));
+      g.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.api.choose(i);
+      });
+    });
+
+    el('circle', { class: 'ring', cx: CX, cy: CY, r: R_IN - 4 }, svg);
+  }
+
+  window.api.onShow(({ name, ext, count, options }) => {
+    currentOptions = options;
+    document.getElementById('name').textContent = name;
+    document.getElementById('ext').textContent = ext || '?';
+    document.getElementById('more').textContent = count > 1 ? `${count} dosya birlikte dönüşecek` : '';
+    targetEl.textContent = '';
+    render(options);
+
+    stage.classList.remove('animate');
+    void stage.offsetWidth;
+    stage.classList.add('animate');
+  });
+
+  // Boş alana tıklayınca kapat
+  document.addEventListener('click', () => window.api.close());
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') return window.api.close();
+    const n = parseInt(e.key, 10);
+    if (n >= 1 && n <= currentOptions.length) window.api.choose(n - 1);
+  });
+</script>
+</body>
+</html>
