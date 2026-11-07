@@ -37,7 +37,7 @@ brew install ffmpeg pandoc poppler
 ## Kurulum
 
 ```bash
-git clone https://github.com/KULLANICI_ADIN/converter.git
+git clone https://github.com/emreedemirkaya/converter.git
 cd converter
 npm install
 npm start
