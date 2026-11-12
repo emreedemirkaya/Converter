@@ -2,11 +2,12 @@
   "name": "converter",
   "productName": "Converter",
   "version": "1.0.0",
-  "description": "Finder için hızlı dosya dönüştürücü",
+  "description": "Finder ve Windows Gezgini için hızlı dosya dönüştürücü",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --mac dir && npm run sign",
+    "build:win": "electron-builder --win nsis",
     "sign": "codesign --force --deep --sign - dist/mac-arm64/Converter.app"
   },
   "keywords": [],
@@ -19,11 +20,13 @@
     "files": [
       "main.js",
       "finder.js",
+      "explorer.js",
       "converters.js",
       "convert.js",
       "preload.js",
       "index.html",
-      "package.json"
+      "package.json",
+      "assets/**"
     ],
     "asarUnpack": [
       "node_modules/uiohook-napi/**"
@@ -35,6 +38,15 @@
         "LSUIElement": true,
         "NSAppleEventsUsageDescription": "Converter, Finder'da seçili dosyaları okumak için Finder'ı kontrol etmek istiyor."
       }
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": false
     }
   },
   "dependencies": {

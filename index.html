@@ -9,7 +9,7 @@
     width: 100%; height: 100%;
     background: transparent;
     overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
     color: #fff;
   }
   .stage { position: relative; width: 600px; height: 600px; }
@@ -61,7 +61,7 @@
   <div class="stage" id="stage">
     <svg id="wheel" viewBox="0 0 600 600" width="600" height="600"></svg>
     <div class="center">
-      <div class="small">Dönüştür</div>
+      <div class="small" id="small">Dönüştür</div>
       <div class="name" id="name"></div>
       <span class="ext" id="ext"></span>
       <div class="target" id="target"></div>
@@ -80,7 +80,20 @@
     heic: '#4f9ccf', tiff: '#7a8b99', gif: '#e0529c', bmp: '#6b8e9b',
     mp3: '#e0529c', wav: '#a855f7', m4a: '#ec6a5e', flac: '#14a3b8', ogg: '#7c8a3a',
     mp4: '#4f6bed', mov: '#4a5568', webm: '#2d9cdb',
+    kur: '#1f9d55', 'hayır': '#4a5568',
   };
+
+  // 'convert': dönüşüm çarkı · 'ask': eksik aracı kurma sorusu (Windows)
+  let mode = 'convert';
+  const ASK_OPTIONS = [
+    { to: 'kur', label: 'Kur · Enter' },
+    { to: 'hayır', label: 'Vazgeç · Esc' },
+  ];
+
+  function pick(i) {
+    if (mode === 'ask') window.api.answer(i === 0);
+    else window.api.choose(i);
+  }
 
   const svg = document.getElementById('wheel');
   const stage = document.getElementById('stage');
@@ -151,33 +164,57 @@
       g.addEventListener('mouseleave', () => (targetEl.textContent = ''));
       g.addEventListener('click', (e) => {
         e.stopPropagation();
-        window.api.choose(i);
+        pick(i);
       });
     });
 
     el('circle', { class: 'ring', cx: CX, cy: CY, r: R_IN - 4 }, svg);
   }
 
-  window.api.onShow(({ name, ext, count, options }) => {
+  function display({ small, name, ext, more, options }) {
     currentOptions = options;
+    document.getElementById('small').textContent = small;
     document.getElementById('name').textContent = name;
-    document.getElementById('ext').textContent = ext || '?';
-    document.getElementById('more').textContent = count > 1 ? `${count} dosya birlikte dönüşecek` : '';
+    document.getElementById('ext').textContent = ext;
+    document.getElementById('more').textContent = more;
     targetEl.textContent = '';
     render(options);
 
     stage.classList.remove('animate');
     void stage.offsetWidth;
     stage.classList.add('animate');
+  }
+
+  window.api.onShow(({ name, ext, count, options }) => {
+    mode = 'convert';
+    display({
+      small: 'Dönüştür',
+      name,
+      ext: ext || '?',
+      more: count > 1 ? `${count} dosya birlikte dönüşecek` : '',
+      options,
+    });
   });
 
-  // Boş alana tıklayınca kapat
+  window.api.onAsk(({ names }) => {
+    mode = 'ask';
+    display({
+      small: 'Kurulum gerekli',
+      name: names.join(' ve '),
+      ext: 'winget',
+      more: 'Birkaç dakika sürebilir · yönetici izni istenebilir',
+      options: ASK_OPTIONS,
+    });
+  });
+
+  // Boş alana tıklayınca kapat (soru açıksa = Vazgeç)
   document.addEventListener('click', () => window.api.close());
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') return window.api.close();
+    if (e.key === 'Escape') return mode === 'ask' ? window.api.answer(false) : window.api.close();
+    if (e.key === 'Enter' && mode === 'ask') return window.api.answer(true);
     const n = parseInt(e.key, 10);
-    if (n >= 1 && n <= currentOptions.length) window.api.choose(n - 1);
+    if (n >= 1 && n <= currentOptions.length) pick(n - 1);
   });
 </script>
 </body>
